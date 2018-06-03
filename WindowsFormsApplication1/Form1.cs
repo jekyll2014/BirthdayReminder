@@ -11,9 +11,11 @@ namespace WindowsFormsApplication1
 {
     public partial class Form1 : Form
     {
-        public Form1()
+        public bool commandLineArgs = false;
+        public Form1(string[] cmdLine)
         {
             InitializeComponent();
+            if (cmdLine.Length == 1 && cmdLine[0] == "/email") BirthdayReminder.Properties.Settings.Default.SendEmail = true;
         }
 
         private void Form1_Load(object sender, EventArgs e)
@@ -122,8 +124,8 @@ namespace WindowsFormsApplication1
                     }
                 }
             }
-            inputFile.Close();            
-            if (bdListStr.Count>0)
+            inputFile.Close();
+            if (bdListStr.Count > 0)
             {
                 //sort lines
                 bdListStr.Sort();
@@ -163,23 +165,31 @@ namespace WindowsFormsApplication1
             // this is done using  using System.Net.Mail; & using System.Net; 
             MailMessage mail = new MailMessage();
             mail.From = new MailAddress(BirthdayReminder.Properties.Settings.Default.SmtpLogin);
-            mail.To.Add(BirthdayReminder.Properties.Settings.Default.EmailTo);
             mail.Subject = BirthdayReminder.Properties.Settings.Default.EmailSubject;
             mail.Body = mailMessage;
             mail.IsBodyHtml = false; // Can set to false, if you are sending pure text.
-
             SmtpClient smtp = new SmtpClient(BirthdayReminder.Properties.Settings.Default.SmtpAddress, BirthdayReminder.Properties.Settings.Default.SmtpPort);
             smtp.Credentials = new NetworkCredential(BirthdayReminder.Properties.Settings.Default.SmtpLogin, BirthdayReminder.Properties.Settings.Default.SmtpPassword);
             smtp.EnableSsl = BirthdayReminder.Properties.Settings.Default.SmtpSSL;
-            try
-            {
-                smtp.Send(mail);
-            }
-            catch (Exception Ex)
-            {
-                MessageBox.Show("Error sending mail: " + Ex.Message);
-            }
 
+            string[] mailList = BirthdayReminder.Properties.Settings.Default.EmailTo.Split(BirthdayReminder.Properties.Settings.Default.CSVdelimiter);
+
+            for (int i = 0; i < mailList.Length; i++)
+            {
+                if (mailList[i] == "" || mailList[i].Length < 3) ;
+                else
+                {
+                    mail.To.Add(mailList[i]);
+                    try
+                    {
+                        smtp.Send(mail);
+                    }
+                    catch (Exception Ex)
+                    {
+                        MessageBox.Show("Error sending mail: " + Ex.Message);
+                    }
+                }
+            }
         }
     }
 }
