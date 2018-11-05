@@ -12,6 +12,13 @@ namespace WindowsFormsApplication1
     public partial class Form1 : Form
     {
         public bool commandLineArgs = false;
+
+        private struct bdList
+        {
+            public int daysTo;
+            public string message;
+        }
+
         public Form1(string[] cmdLine)
         {
             InitializeComponent();
@@ -32,8 +39,9 @@ namespace WindowsFormsApplication1
                 return;
             }
             string inputStr = "";
-            List<string> bdListStr = new List<string>();
+            List<bdList> bdListStr = new List<bdList>();
             int c = 0;//inputFile.ReadByte();
+            DateTime now = new DateTime(DateTime.Now.Year, DateTime.Now.Month, DateTime.Now.Day);
 
             //read CSV content string by string
             while (c != -1)
@@ -79,47 +87,59 @@ namespace WindowsFormsApplication1
                             }
                         }
                         //calculate remaining days
-                        DateTime now = new DateTime(DateTime.Now.Year, DateTime.Now.Month, DateTime.Now.Day);
-                        DateTime birthday = new DateTime(DateTime.Now.Year, bd_month, bd_day);
-                        double diff = birthday.Subtract(now).TotalDays;
+                        DateTime birthday = new DateTime(now.Year, bd_month, bd_day);
+                        int diff = (int)birthday.Subtract(now).TotalDays;
                         if (diff < 0)
                         {
                             birthday = new DateTime(DateTime.Now.Year + 1, bd_month, bd_day);
-                            diff = birthday.Subtract(now).TotalDays;
+                            diff = (int)birthday.Subtract(now).TotalDays;
                         }
                         if (diff >= 0 && diff <= BirthdayReminder.Properties.Settings.Default.WarnPeriod)
                         {
+
                             string daySign = "";
                             string ageSign = "";
 
-                            string tmp = diff.ToString();
-                            tmp = tmp.Substring(tmp.Length - 1);
-                            if (tmp == "0" || tmp == "5" || tmp == "6" || tmp == "7" || tmp == "8" || tmp == "9" || (diff > 10 && diff < 15) || (diff > 110 && diff < 115) || (diff > 210 && diff < 215) || (diff > 310 && diff < 315)) daySign = " дней";
-                            else if (tmp == "1") daySign = " день";
-                            else if (tmp == "2" || tmp == "3" || tmp == "4") daySign = " дня";
+                            int _diffLast = diff - (int)(diff / 10);
+                            //it'll be right till the of 410 days
+                            if (_diffLast == 0 || _diffLast == 5 || _diffLast == 6 || _diffLast == 7 || _diffLast == 8 || _diffLast == 9 || (diff > 10 && diff < 15) || (diff > 110 && diff < 115) || (diff > 210 && diff < 215) || (diff > 310 && diff < 315)) daySign = " дней";
+                            else if (_diffLast == 1) daySign = " день";
+                            else if (_diffLast == 2 || _diffLast == 3 || _diffLast == 4) daySign = " дня";
 
+                            bdList tmpItem = new bdList();
+                            tmpItem.daysTo = diff;
                             if (diff == 0)
                             {
-                                bdListStr.Add("Сегодня ДР: " + cells[1] + " " + cells[0]);
+                                tmpItem.message = "Сегодня ДР: " + cells[1] + " " + cells[0];
                             }
                             else
                             {
-                                bdListStr.Add("Через " + diff.ToString() + daySign + " ДР: " + cells[1] + " " + cells[0]);
+                                tmpItem.message = "Через " + diff.ToString() + daySign + " ДР: " + cells[1] + " " + cells[0];
                             }
                             //  check if year has no '?'and calculate age
                             if (!str_year.Contains("?"))
                             {
                                 age = DateTime.Now.Year - int.Parse(str_year);
 
-                                tmp = age.ToString();
-                                tmp = tmp.Substring(tmp.Length - 1);
-                                if (tmp == "0" || tmp == "5" || tmp == "6" || tmp == "7" || tmp == "8" || tmp == "9" || (diff > 10 && diff < 15) || (diff > 110 && diff < 115) || (diff > 210 && diff < 215) || (diff > 310 && diff < 315)) ageSign = " лет";
-                                else if (tmp == "1") ageSign = " год";
-                                else if (tmp == "2" || tmp == "3" || tmp == "4") ageSign = " года";
+                                _diffLast = age - (int)(age / 10);
+                                //it'll be right till the age of 210
+                                if (_diffLast == 0 || _diffLast == 5 || _diffLast == 6 || _diffLast == 7 || _diffLast == 8 || _diffLast == 9 || (age > 10 && age < 15) || (age > 110 && age < 115)) ageSign = " лет";
+                                else if (_diffLast == 1) ageSign = " год";
+                                else if (_diffLast == 2 || _diffLast == 3 || _diffLast == 4) ageSign = " года";
 
-                                bdListStr[bdListStr.Count - 1] += " (" + age.ToString() + ageSign + ")";
+                                tmpItem.message += "(" + age.ToString() + ageSign + ")";
                             }
-                            bdListStr[bdListStr.Count - 1] += ".\r\n";
+                            tmpItem.message += ".\r\n";
+                            int n = 0;
+                            for (n = 0; n < bdListStr.Count; n++)
+                            {
+                                if (bdListStr[n].daysTo > tmpItem.daysTo) break;
+                            }
+                            if (n < bdListStr.Count)
+                            {
+                                bdListStr.Insert(n, tmpItem);
+                            }
+                            else bdListStr.Add(tmpItem);
                         }
                     }
                 }
@@ -127,17 +147,15 @@ namespace WindowsFormsApplication1
             inputFile.Close();
             if (bdListStr.Count > 0)
             {
-                //sort lines
-                bdListStr.Sort();
                 if (BirthdayReminder.Properties.Settings.Default.SendEmail == false)
                 {
                     textBox_bdList.Font = new Font(textBox_bdList.Font.FontFamily, BirthdayReminder.Properties.Settings.Default.FontSize);
-                    for (int i = 0; i < bdListStr.Count; i++) textBox_bdList.Text += bdListStr[i];
+                    for (int i = 0; i < bdListStr.Count; i++) textBox_bdList.Text += bdListStr[i].message;
                 }
                 else if (BirthdayReminder.Properties.Settings.Default.SendEmail == true)
                 {
                     string tmp = "";
-                    for (int i = 0; i < bdListStr.Count; i++) tmp += bdListStr[i];
+                    for (int i = 0; i < bdListStr.Count; i++) tmp += bdListStr[i].message;
                     SendEmail(tmp);
                     Application.Exit();
                 }
